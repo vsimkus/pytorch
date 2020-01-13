@@ -16,6 +16,19 @@ c10::OperatorOptions aliasAnalysisInternalSpecialCase() {
 }
 } // namespace
 
+bool canInsertTuple(
+    Graph& g,
+    const IValue& ivalue,
+    const c10::optional<SourceRange>& loc,
+    const c10::optional<ScopePtr>& scope) {
+  for (const auto& elem : ivalue.toTuple()->elements()) {
+    if (tryInsertConstant(g, elem, loc, scope) == c10::nullopt) {
+      return false;
+    }
+  }
+  return true;
+}
+
 Value* insertConstant(
     Graph& g,
     const IValue& val,
@@ -93,6 +106,14 @@ c10::optional<Value*> tryInsertConstant(
     n->output()->setType(DeviceObjType::get());
   } else if (val.isNone()) {
     n->output()->setType(NoneType::get());
+  } else if (val.isTuple()) {
+    if (canInsertTuple(g, val, loc, scope)) {
+      n->ival_(attr::value, val);
+      n->output()->setType(val.type());
+    } else {
+      n->destroy();
+      return c10::nullopt;
+    };
   } else {
     n->destroy();
     return c10::nullopt;
@@ -141,6 +162,15 @@ RegisterOperators reg({
             auto f = node->f(attr::value);
             return [f](Stack& stack) {
               push(stack, f);
+              return 0;
+            };
+          } else if (
+              type->cast<TupleType>() &&
+              node->kindOf(attr::value) == AttributeKind::ival) {
+            const auto& tup = node->ival(attr::value);
+            TORCH_INTERNAL_ASSERT(tup.isTuple());
+            return [tup](Stack& stack) {
+              push(stack, tup);
               return 0;
             };
           } else if (type->isSubtypeOf(ListType::ofInts())) {

@@ -793,7 +793,8 @@ struct PythonPrintImpl {
     }
   }
 
-  void printConstant(TaggedStringStream& stmt, const IValue& v) {
+  template <typename T>
+  void printConstant(T& stmt, const IValue& v) {
     std::stringstream ss;
     if (v.isTensor()) {
       ss << "CONSTANTS.c" << getOrAddTensorConstant(v.toTensor());
@@ -834,6 +835,19 @@ struct PythonPrintImpl {
         }
         ss << "]";
       }
+    } else if (v.isTuple()) {
+      const auto& elems = v.toTuple()->elements();
+      ss << "(";
+      const char* delim = "";
+      for (const auto& ivalue : elems) {
+        ss << delim;
+        printConstant(ss, ivalue);
+        delim = ", ";
+      }
+      if (elems.size() == 1) {
+        ss << ",";
+      }
+      ss << ")";
     } else {
       ss << v;
     }
