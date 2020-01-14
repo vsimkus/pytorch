@@ -316,6 +316,18 @@ def _invoke_rpc(to, func, rpc_type, args=None, kwargs=None):
             _agent, info, pickled_python_udf, tensors, rf)
     return fut
 
+@_require_initialized
+def set_metrics_profiling(flag):
+    r"""
+    Set whether certain metrics (such as GIL wait times) should be profiled or
+    not. This incurs a slight computational cost, so it should be disabled for
+    production runs. Default is enabled.
+
+    Arguments:
+        flag (bool): True to set metrics profiling, False to disable.
+    """
+    _agent.set_metrics_profiling(flag)
+
 
 @_require_initialized
 def rpc_sync(to, func, args=None, kwargs=None):

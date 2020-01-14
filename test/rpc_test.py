@@ -1248,6 +1248,21 @@ class RpcTest(RpcAgentTestFixture):
         dist.barrier()
 
     @dist_init
+    def test_disable_metrics_profiling(self):
+        # test that rpc.set_metrics_profiling(false) will result in more
+        # expensive metrics such as GIL wait time not being recorded.
+        from torch.distributed.rpc.api import _agent
+        rpc.set_metrics_profiling(False)
+        dst_rank = (self.rank + 1) % self.world_size
+        rpc.rpc_sync("worker{}".format(dst_rank), torch.add, args=(torch.ones(1), torch.ones(1)))
+        info = _agent.get_debug_info()
+        self.assertRaises(KeyError, lambda: info["agent.gil_average_wait_time_us"])
+        rpc.set_metrics_profiling(True)
+        rpc.rpc_sync("worker{}".format(dst_rank), torch.add, args=(torch.ones(1), torch.ones(1)))
+        info = _agent.get_debug_info()
+        self.assertIn("agent.gil_average_wait_time_us", info)
+
+    @dist_init
     @requires_process_group_agent("PROCESS_GROUP rpc backend specific test, skip")
     def test_process_group_debug_info(self):
         from torch.distributed.rpc.api import _agent
@@ -1255,12 +1270,13 @@ class RpcTest(RpcAgentTestFixture):
         NUM_THREAD = self.rpc_backend_options.num_send_recv_threads
 
         info = _agent.get_debug_info()
-        self.assertIn("num_pending_requests", info)
-        self.assertIn("thread_pool_size", info)
-        self.assertIn("num_idle_threads", info)
-        self.assertEqual(int(info["num_pending_requests"]), 0)
-        self.assertEqual(int(info["thread_pool_size"]), NUM_THREAD)
-        self.assertEqual(int(info["num_idle_threads"]), NUM_THREAD)
+        self.assertIn("agent.num_pending_requests", info)
+        self.assertIn("agent.thread_pool_size", info)
+        self.assertIn("agent.num_idle_threads", info)
+        self.assertIn("agent.gil_average_wait_time_us", info)
+        self.assertEqual(int(info["agent.num_pending_requests"]), 0)
+        self.assertEqual(int(info["agent.thread_pool_size"]), NUM_THREAD)
+        self.assertEqual(int(info["agent.num_idle_threads"]), NUM_THREAD)
         # for the above check, add a barrier to ensure that another worker
         # cannot send a request before we check num_idle_threads, since we'd
         # use up an idle thread if we start processing that request.
@@ -1275,12 +1291,14 @@ class RpcTest(RpcAgentTestFixture):
         self.assertEqual(self.rank, VALUE_FUTURE.result())
 
         info = _agent.get_debug_info()
-        self.assertIn("num_pending_requests", info)
-        self.assertIn("thread_pool_size", info)
-        self.assertIn("num_idle_threads", info)
-        self.assertEqual(int(info["num_pending_requests"]), 1)
-        self.assertEqual(int(info["thread_pool_size"]), NUM_THREAD)
-        num_idle_threads = int(info["num_idle_threads"])
+        self.assertIn("agent.num_pending_requests", info)
+        self.assertIn("agent.thread_pool_size", info)
+        self.assertIn("agent.num_idle_threads", info)
+        self.assertIn("agent.gil_average_wait_time_us", info)
+        self.assertGreaterEqual(float(info["agent.gil_average_wait_time_us"]), 0)
+        self.assertEqual(int(info["agent.num_pending_requests"]), 1)
+        self.assertEqual(int(info["agent.thread_pool_size"]), NUM_THREAD)
+        num_idle_threads = int(info["agent.num_idle_threads"])
         # as we cannot know for sure whether the send thread has returned, there
         # might be either 1 or 2 busy threads
         self.assertTrue(num_idle_threads in [NUM_THREAD - 1, NUM_THREAD - 2])
@@ -1297,11 +1315,11 @@ class RpcTest(RpcAgentTestFixture):
         dist.barrier()
 
         info = _agent.get_debug_info()
-        self.assertIn("num_pending_requests", info)
-        self.assertIn("thread_pool_size", info)
-        self.assertIn("num_idle_threads", info)
-        self.assertEqual(int(info["num_pending_requests"]), 0)
-        self.assertEqual(int(info["thread_pool_size"]), NUM_THREAD)
+        self.assertIn("agent.num_pending_requests", info)
+        self.assertIn("agent.thread_pool_size", info)
+        self.assertIn("agent.num_idle_threads", info)
+        self.assertEqual(int(info["agent.num_pending_requests"]), 0)
+        self.assertEqual(int(info["agent.thread_pool_size"]), NUM_THREAD)
 
         for retry in range(3):
             # even if the future has completed, there is no guarantee that
@@ -1309,10 +1327,10 @@ class RpcTest(RpcAgentTestFixture):
             # times. (NB: this might potentially be flaky. If flakiness does
             # occur, then we have to relax the assert.)
             info = _agent.get_debug_info()
-            if int(info["num_idle_threads"]) == NUM_THREAD:
+            if int(info["agent.num_idle_threads"]) == NUM_THREAD:
                 break
             time.sleep(0.1)
-        self.assertEqual(int(info["num_idle_threads"]), NUM_THREAD)
+        self.assertEqual(int(info["agent.num_idle_threads"]), NUM_THREAD)
 
         # add a barrier to make sure SHUTDOWN message is not sent
         dist.barrier()
