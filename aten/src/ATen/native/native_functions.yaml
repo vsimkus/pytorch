@@ -699,15 +699,9 @@
 - func: clamp_(Tensor(a!) self, Scalar? min=None, Scalar? max=None) -> Tensor(a!)
   supports_named_tensor: True
   variants: function, method
-  dispatch:
-    CPU: _clamp__cpu
-    CUDA: _clamp__cuda
 
 - func: clamp.out(Tensor self, Scalar? min=None, Scalar? max=None, *, Tensor(a!) out) -> Tensor(a!)
   supports_named_tensor: True
-  dispatch:
-    CPU: _clamp_out_cpu
-    CUDA: _clamp_out_cuda
 
 - func: clamp_max(Tensor self, Scalar max) -> Tensor
   use_c10_dispatcher: full
@@ -717,15 +711,9 @@
 - func: clamp_max_(Tensor(a!) self, Scalar max) -> Tensor(a!)
   supports_named_tensor: True
   variants: function, method
-  dispatch:
-    CPU: _clamp_max__cpu
-    CUDA: _clamp_max__cuda
 
 - func: clamp_max.out(Tensor self, Scalar max, *, Tensor(a!) out) -> Tensor(a!)
   supports_named_tensor: True
-  dispatch:
-    CPU: _clamp_max_out_cpu
-    CUDA: _clamp_max_out_cuda
 
 - func: clamp_min(Tensor self, Scalar min) -> Tensor
   use_c10_dispatcher: full
@@ -735,15 +723,93 @@
 - func: clamp_min_(Tensor(a!) self, Scalar min) -> Tensor(a!)
   supports_named_tensor: True
   variants: function, method
-  dispatch:
-    CPU: _clamp_min__cpu
-    CUDA: _clamp_min__cuda
 
 - func: clamp_min.out(Tensor self, Scalar min, *, Tensor(a!) out) -> Tensor(a!)
   supports_named_tensor: True
+
+- func: clamp_with_tensors(Tensor self, Tensor? min=None, Tensor? max=None) -> Tensor
+  use_c10_dispatcher: unboxed_only
+  supports_named_tensor: True
+  variants: function, method
   dispatch:
-    CPU: _clamp_min_out_cpu
-    CUDA: _clamp_min_out_cuda
+    CPU: clamp_with_tensors
+    CUDA: clamp_with_tensors
+    QuantizedCPU: quantized_clamp_with_tensors
+
+- func: clamp_with_tensors_(Tensor(a!) self, Tensor? min=None, Tensor? max=None) -> Tensor(a!)
+  supports_named_tensor: True
+  variants: function, method
+
+- func: clamp_with_tensors.out(Tensor self, Tensor? min=None, Tensor? max=None, *, Tensor(a!) out) -> Tensor(a!)
+  supports_named_tensor: True
+
+- func: clamp_with_tensors_max(Tensor self, Tensor max) -> Tensor
+  use_c10_dispatcher: full
+  supports_named_tensor: True
+  variants: function, method
+
+- func: clamp_with_tensors_max_(Tensor(a!) self, Tensor max) -> Tensor(a!)
+  supports_named_tensor: True
+  variants: function, method
+
+- func: clamp_with_tensors_max.out(Tensor self, Tensor max, *, Tensor(a!) out) -> Tensor(a!)
+  supports_named_tensor: True
+
+- func: clamp_with_tensors_min(Tensor self, Tensor min) -> Tensor
+  use_c10_dispatcher: full
+  supports_named_tensor: True
+  variants: function, method
+
+- func: clamp_with_tensors_min_(Tensor(a!) self, Tensor min) -> Tensor(a!)
+  supports_named_tensor: True
+  variants: function, method
+
+- func: clamp_with_tensors_min.out(Tensor self, Tensor min, *, Tensor(a!) out) -> Tensor(a!)
+  supports_named_tensor: True
+
+- func: clamp_with_tensors.min_tensor(Tensor self, Tensor min, Scalar max) -> Tensor
+  use_c10_dispatcher: full
+  supports_named_tensor: True
+  variants: function, method
+  dispatch:
+    CPU: clamp_with_min_tensor
+    CUDA: clamp_with_min_tensor
+    QuantizedCPU: quantized_clamp_with_min_tensor
+
+- func: clamp_with_tensors_.min_tensor(Tensor(a!) self, Tensor min, Scalar max) -> Tensor(a!)
+  supports_named_tensor: True
+  variants: function, method
+  dispatch:
+    CPU: clamp_with_min_tensor_
+    CUDA: clamp_with_min_tensor_
+
+- func: clamp_with_tensors.min_tensor_out(Tensor self, Tensor min, Scalar max, *, Tensor(a!) out) -> Tensor(a!)
+  supports_named_tensor: True
+  dispatch:
+    CPU: clamp_with_min_tensor_out
+    CUDA: clamp_with_min_tensor_out
+
+- func: clamp_with_tensors.max_tensor(Tensor self, Scalar min, Tensor max) -> Tensor
+  use_c10_dispatcher: full
+  supports_named_tensor: True
+  variants: function, method
+  dispatch:
+    CPU: clamp_with_max_tensor
+    CUDA: clamp_with_max_tensor
+    QuantizedCPU: quantized_clamp_with_max_tensor
+
+- func: clamp_with_tensors_.max_tensor(Tensor(a!) self, Scalar min, Tensor max) -> Tensor(a!)
+  supports_named_tensor: True
+  variants: function, method
+  dispatch:
+    CPU: clamp_with_max_tensor_
+    CUDA: clamp_with_max_tensor_
+
+- func: clamp_with_tensors.max_tensor_out(Tensor self, Scalar min, Tensor max, *, Tensor(a!) out) -> Tensor(a!)
+  supports_named_tensor: True
+  dispatch:
+    CPU: clamp_with_max_tensor_out
+    CUDA: clamp_with_max_tensor_out
 
 - func: cudnn_is_acceptable(Tensor self) -> bool
   use_c10_dispatcher: full

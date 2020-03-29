@@ -1096,7 +1096,8 @@ class ShapePropagator {
     // Requirements:
     //   dims           : preserved from the first argument
     //   scalar type    : preserved from the first argument (doesn't have to
-    //   match other arguments) device         : always matching and preserved
+    //   match other arguments) 
+    //   device         : always matching and preserved
     //   tensor inputs  : *
     //   tensor outputs : 1
     // NB: those ops (with slight adjustments) are good candidates for restarts.
@@ -1137,6 +1138,12 @@ class ShapePropagator {
             "aten::upsample_nearest3d(Tensor self, int[] output_size, float? scales_d, float? scales_h, float? scales_w) -> Tensor",
             "aten::upsample_trilinear3d(Tensor self, int[] output_size, bool align_corners, float? scales_d, float? scales_h, float? scales_w) -> Tensor",
             "aten::prelu(Tensor self, Tensor weight) -> Tensor",
+            // Clamp
+            // "aten::clamp_with_tensors(Tensor self, Tensor? min, Tensor? max) -> Tensor",
+            // "aten::clamp_with_tensors(Tensor self, Tensor min, Scalar max) -> Tensor",
+            // "aten::clamp_with_tensors(Tensor self, Scalar min, Tensor max) -> Tensor",
+            // "aten::clamp_with_tensors_max(Tensor self, Tensor max) -> Tensor",
+            // "aten::clamp_with_tensors_min(Tensor self, Tensor min) -> Tensor",
         },
         [](Node* node) -> type_vec_t {
           if (auto type = node->input(0)->type()->cast<TensorType>()) {

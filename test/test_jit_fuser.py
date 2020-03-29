@@ -294,11 +294,16 @@ class TestFuser(JitTestCase):
         def funcOptMax(a, b):
             return torch.clamp(a + b, min=0)
 
+        def funcWithTensors(a, b):
+            min = torch.randn(4, 4, dtype=torch.float, device='cuda')
+            max = torch.randn(4, 4, dtype=torch.float, device='cuda')
+            return torch.clamp_with_tensors(a + b, min=min, max=max)
+
         a = torch.randn(4, 4, dtype=torch.float, device='cuda', requires_grad=True)
         b = torch.randn(4, 4, dtype=torch.float, device='cuda')
         nan = torch.tensor(float('nan'), dtype=torch.float, device='cuda')
 
-        funcs = (func2, funcInf, funcOptMin, funcOptMax)
+        funcs = (func2, funcInf, funcOptMin, funcOptMax, funcWithTensors)
         for f, inputs in product(funcs, [[a, b], [a, nan]]):
             inp1, inp2 = inputs
             s = self.checkScript(f, (inp1, inp2), profiling=ProfilingMode.PROFILING)
