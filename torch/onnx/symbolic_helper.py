@@ -171,6 +171,8 @@ def _is_value(x):
 def _is_tensor_list(x):
     return x.type().isSubtypeOf(ListType.ofTensors())
 
+def _is_tensor(x):
+    return isinstance(x, torch.Tensor)
 
 def _unimplemented(op, msg):
     warnings.warn("ONNX export failed on " + op + " because " + msg + " not supported")

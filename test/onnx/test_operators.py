@@ -351,6 +351,22 @@ class TestOperators(TestCase):
         x = torch.randn(1, 2, 3, 4, requires_grad=True)
         self.assertONNX(lambda x: x.clamp(max=0.1), x)
 
+    def test_clip_with_tensors(self):
+        x = torch.randn(3, 4, requires_grad=True)
+        min = torch.randn(3, 4, requires_grad=True).clamp(max=0)
+        max = torch.randn(3, 4, requires_grad=True).clamp(min=0)
+        self.assertONNX(lambda x, min, max: torch.clamp(x, min=min, max=max), (x, min, max))
+
+    def test_clip_with_tensors_min(self):
+        x = torch.randn(1, 2, 3, 4, requires_grad=True)
+        min = torch.randn(1, 2, 3, 4, requires_grad=True).clamp(max=0)
+        self.assertONNX(lambda x, min: x.clamp(min=min), (x, min))
+
+    def test_clip_with_tensors_max(self):
+        x = torch.randn(1, 2, 3, 4, requires_grad=True)
+        max = torch.randn(1, 2, 3, 4, requires_grad=True).clamp(min=0)
+        self.assertONNX(lambda x, max: x.clamp(max=max), (x, max))
+
     def test_hardtanh(self):
         x = torch.randn(3, 4, requires_grad=True)
         self.assertONNX(lambda x: torch.nn.Hardtanh(-0.5, 0.5)(x), x)

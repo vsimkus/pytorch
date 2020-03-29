@@ -1236,17 +1236,21 @@ def pow(g, self, exponent):
 
 
 def clamp(g, self, min, max):
-    # min or max may be None that we need to dispatch to
-    # Clip separately, as ONNX does not have None syntax
-    if sym_help._is_none(min):
-        return clamp_max(g, self, max)
-    elif sym_help._is_none(max):
-        return clamp_min(g, self, min)
+    # If either min or max is a Tensor then use clamp_with_tensors
+    if (not sym_help._is_none(min) and sym_help._is_tensor(min) and min.shape != ()) \
+            or (not sym_help._is_none(max) and sym_help._is_tensor(max) and max.shape != ()):
+        return clamp_with_tensors(g, self, min, max)
     else:
-        min = _parse_arg(min, 'f')
-        max = _parse_arg(max, 'f')
-        return g.op("Clip", self, min_f=min, max_f=max)
-
+        # min or max may be None that we need to dispatch to
+        # Clip separately, as ONNX does not have None syntax
+        if sym_help._is_none(min):
+            return clamp_max(g, self, max)
+        elif sym_help._is_none(max):
+            return clamp_min(g, self, min)
+        else:
+            min = _parse_arg(min, 'f')
+            max = _parse_arg(max, 'f')
+            return g.op("Clip", self, min_f=min, max_f=max)
 
 @parse_args('v', 'f')
 def clamp_min(g, self, min):
@@ -1257,6 +1261,22 @@ def clamp_min(g, self, min):
 def clamp_max(g, self, max):
     return g.op("Clip", self, max_f=max)
 
+def clamp_with_tensors(g, self, min, max):
+    if sym_help._is_none(min):
+        return clamp_with_tensors_max(g, self, max)
+    elif sym_help._is_none(max):
+        return clamp_with_tensors_min(g, self, min)
+
+    # Both args are tensors
+    out = clamp_with_tensors_max(g, self, max)
+    return clamp_with_tensors_min(g, out, min)
+
+
+def clamp_with_tensors_min(g, self, min):
+    return g.op("Max", self, min)
+
+def clamp_with_tensors_max(g, self, max):
+    return g.op("Min", self, max)
 
 # torch.max (same for torch.min) actually has two interfaces smashed together:
 # torch.max(x, dim, keepdim) and torch.max(x, y)

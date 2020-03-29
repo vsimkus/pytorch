@@ -8,7 +8,7 @@ import warnings
 import numpy
 
 from torch.onnx.symbolic_helper import parse_args, _unimplemented
-from torch.onnx.symbolic_opset9 import expand
+from torch.onnx.symbolic_opset9 import expand, clamp_with_tensors
 from torch.nn.modules.utils import _single, _pair, _triple
 
 
@@ -31,18 +31,23 @@ def hardtanh(g, self, min_val, max_val):
 
 
 def clamp(g, self, min, max):
-    dtype = self.type().scalarType()
+    # If either min or max is a Tensor then use clamp_with_tensors
+    if (not sym_help._is_none(min) and sym_help._is_tensor(min) and min.shape != ()) \
+            or (not sym_help._is_none(max) and sym_help._is_tensor(max) and max.shape != ()):
+        return clamp_with_tensors(g, self, min, max)
+    else:
+        dtype = self.type().scalarType()
 
-    def _cast_if_not_none(tensor, dtype):
-        if tensor is not None and not sym_help._is_none(tensor):
-            return g.op("Cast", tensor, to_i=sym_help.cast_pytorch_to_onnx[dtype])
-        else:
-            return tensor
+        def _cast_if_not_none(tensor, dtype):
+            if tensor is not None and not sym_help._is_none(tensor):
+                return g.op("Cast", tensor, to_i=sym_help.cast_pytorch_to_onnx[dtype])
+            else:
+                return tensor
 
-    if dtype is not None:
-        min = _cast_if_not_none(min, dtype)
-        max = _cast_if_not_none(max, dtype)
-    return g.op("Clip", self, min, max)
+        if dtype is not None:
+            min = _cast_if_not_none(min, dtype)
+            max = _cast_if_not_none(max, dtype)
+        return g.op("Clip", self, min, max)
 
 
 def index_put(g, self, indices_list_value, values, accumulate=False):
