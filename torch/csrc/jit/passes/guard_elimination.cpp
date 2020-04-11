@@ -292,6 +292,7 @@ struct GuardElimination {
       case aten::bitwise_and:
       case aten::bitwise_or:
       case aten::bitwise_xor:
+      //case aten::clamp_with_tensors:
         return checkInputs(n, no_exceptions, true);
       case aten::softmax:
         return checkInputs(n, std::unordered_set<size_t>{1}, true);

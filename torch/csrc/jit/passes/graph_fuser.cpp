@@ -42,6 +42,7 @@ bool isSimpleMap(Node* node) {
       "aten::atan2(Tensor self, Tensor other) -> Tensor",
       "aten::ceil(Tensor self) -> Tensor",
       "aten::clamp(Tensor self, Scalar? min, Scalar? max) -> Tensor",
+      "aten::clamp_with_tensors(Tensor self, Tensor? min, Tensor? max) -> Tensor",
       "aten::cos(Tensor self) -> Tensor",
       "aten::cosh(Tensor self) -> Tensor",
       "aten::div(Tensor self, Tensor other) -> Tensor",

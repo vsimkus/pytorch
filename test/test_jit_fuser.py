@@ -310,6 +310,28 @@ class TestFuser(JitTestCase):
             self.assertAllFused(graph, except_for={'aten::Float', 'aten::_grad_sum_to_size'})
 
     @unittest.skipIf(not RUN_CUDA, "fuser requires CUDA")
+    @unittest.skipIf(GRAPH_EXECUTOR == ProfilingMode.LEGACY, "borked on the legacy executor")
+    def test_clamp_with_tensors(self):
+        def funcWithTensors(a, b, min_tensor, max_tensor):
+            return torch.clamp_with_tensors(a + b, min=min_tensor, max=max_tensor)
+
+        a = torch.randn(4, 4, dtype=torch.float, device='cuda', requires_grad=True)
+        b = torch.randn(4, 4, dtype=torch.float, device='cuda')
+        nan = torch.tensor(float('nan'), dtype=torch.float, device='cuda')
+        min_tensor = torch.randn(4, 4, dtype=torch.float, device='cuda')
+        max_tensor = torch.randn(4, 4, dtype=torch.float, device='cuda')
+
+        funcs = (funcWithTensors, )
+        for f, inputs in product(funcs, [[a, b, min_tensor, max_tensor], [a, nan, min_tensor, max_tensor]]):
+            s = self.checkScript(f, inputs, profiling=ProfilingMode.PROFILING)
+            self.assertAllFused(s.graph_for(*inputs), except_for={'aten::size', 'aten::_size_if_not_equal'})
+            c = s(*inputs)
+            with enable_profiling_mode():
+                warmup_backward(c.sum())
+            graph = backward_graph(s)
+            self.assertAllFused(graph, except_for={'aten::Float', 'aten::_grad_sum_to_size'})
+
+    @unittest.skipIf(not RUN_CUDA, "fuser requires CUDA")
     @unittest.skipIf(GRAPH_EXECUTOR != ProfilingMode.LEGACY, "no half support with profiling on")
     def test_dropout(self):
         def func(x):
