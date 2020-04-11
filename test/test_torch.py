@@ -165,6 +165,7 @@ class _TestTorchMixin(object):
         test_namespace(torch.randn(1),
                        'as_strided_',
                        re.compile('^clamp_(min|max)_?$'),
+                       re.compile('^clamp_with_tensors(_((min|max)_?)?)?$'),
                        'coalesce',
                        'is_coalesced',
                        'is_distributed',
@@ -6242,6 +6243,106 @@ class TestTorchDeviceType(TestCase):
 
         torch.clamp(test_tens, max=max_val, out=out)
         self.assertEqual(torch.isnan(out), torch.isnan(res1))
+
+        error_msg = 'At least one of \'min\' or \'max\' must not be None'
+        with self.assertRaisesRegex(RuntimeError, error_msg):
+            m1.clamp()
+        with self.assertRaisesRegex(RuntimeError, error_msg):
+            m1.clamp_()
+
+    def test_clamp_with_tensors(self, device):
+        m1 = torch.rand(100, device=device).mul(5).add(-2.5)  # uniform in [-2.5, 2.5]
+        min_vals = torch.linspace(-1, 0, 100, device=device)  # [-1..0]
+        max_vals = torch.linspace(1, 0, 100, device=device)  # [1..0]
+
+        res1 = m1.clone()
+        res1.clamp_(min_vals, max_vals)
+        res2 = m1.clone()
+        for i in iter_indices(res2):
+            res2[i] = max(min_vals[i], min(max_vals[i], res2[i]))
+        self.assertEqual(res1, res2)
+
+        out = m1.clone()
+        torch.clamp(m1, min=min_vals, max=max_vals, out=out)
+        self.assertEqual(out, res1)
+
+        res1 = torch.clamp(m1, min=min_vals)
+        res2 = m1.clone()
+        for i in iter_indices(res2):
+            res2[i] = max(min_vals[i], res2[i])
+        self.assertEqual(res1, res2)
+
+        torch.clamp(m1, min=min_vals, out=out)
+        self.assertEqual(out, res1)
+
+        res1 = torch.clamp(m1, max=max_vals)
+        res2 = m1.clone()
+        for i in iter_indices(res2):
+            res2[i] = min(max_vals[i], res2[i])
+        self.assertEqual(res1, res2)
+
+        torch.clamp(m1, max=max_vals, out=out)
+        self.assertEqual(out, res1)
+
+        # if the tensor contains nan
+        test_tens = m1.clone()
+        mask = torch.randint(0, 2, (100,), dtype=torch.bool, device=device)
+        test_tens[mask] = nan
+
+        res1 = test_tens.clone()
+        res1.clamp_(min_vals, max_vals)
+        res2 = test_tens.clone()
+        for i in iter_indices(res2):
+            res2[i] = max(min(res2[i], max_vals[i]), min_vals[i])
+        self.assertEqual(torch.isnan(res1), torch.isnan(res2))
+
+        out = test_tens.clone()
+        torch.clamp(test_tens, min=min_vals, max=max_vals, out=out)
+        self.assertEqual(torch.isnan(out), torch.isnan(res1))
+
+        res1 = torch.clamp(test_tens, min=min_vals)
+        res2 = test_tens.clone()
+        for i in iter_indices(res2):
+            res2[i] = max(res2[i], min_vals[i])
+        self.assertEqual(torch.isnan(res1), torch.isnan(res2))
+
+        torch.clamp(test_tens, min=min_vals, out=out)
+        self.assertEqual(torch.isnan(out), torch.isnan(res1))
+
+        res1 = torch.clamp(test_tens, max=max_vals)
+        res2 = test_tens.clone()
+        for i in iter_indices(res2):
+            res2[i] = min(res2[i], max_vals[i])
+        self.assertEqual(torch.isnan(res1), torch.isnan(res2))
+
+        torch.clamp(test_tens, max=max_vals, out=out)
+        self.assertEqual(torch.isnan(out), torch.isnan(res1))
+
+        # One scalar, one tensor
+        min_scalar = -1
+        max_scalar = 1
+
+        res1 = m1.clone()
+        res1.clamp_(min_scalar, max_vals)
+        res2 = m1.clone()
+        for i in iter_indices(res2):
+            res2[i] = max(min_scalar, min(max_vals[i], res2[i]))
+        self.assertEqual(res1, res2)
+
+        out = m1.clone()
+        torch.clamp(m1, min=min_scalar, max=max_vals, out=out)
+        self.assertEqual(out, res1)
+
+        res1 = m1.clone()
+        res1.clamp_(min_vals, max_scalar)
+        res2 = m1.clone()
+        for i in iter_indices(res2):
+            res2[i] = max(min_vals[i], min(max_scalar, res2[i]))
+        self.assertEqual(res1, res2)
+
+        out = m1.clone()
+        torch.clamp(m1, min=min_vals, max=max_scalar, out=out)
+        self.assertEqual(out, res1)
 
         error_msg = 'At least one of \'min\' or \'max\' must not be None'
         with self.assertRaisesRegex(RuntimeError, error_msg):
@@ -16262,6 +16363,12 @@ tensor_op_tests = [
     ('clamp', 'pos', _medium_2d, lambda t, d: [1, 5], 1e-5, 1e-2, 1e-5, _unsigned_types, [torch.bfloat16]),
     ('clamp_min', '', _medium_2d, lambda t, d: [1], 1e-2, 1e-2, 1e-5, _types, [torch.bfloat16]),
     ('clamp_max', '', _medium_2d, lambda t, d: [1], 1e-2, 1e-2, 1e-5, _types, [torch.bfloat16]),
+    ('clamp', 'tensors', _medium_2d, lambda t, d: [_medium_2d(t, d), _medium_2d(t, d)],
+        1e-5, 1e-5, 1e-5, _signed_types, [torch.bfloat16]),
+    ('clamp', 'tensors_max', _medium_2d, lambda t, d: [None, _medium_2d(t, d)], 
+        1e-5, 1e-5, 1e-5, _signed_types, [torch.bfloat16]),
+    ('clamp', 'tensors_min', _medium_2d, lambda t, d: [_medium_2d(t, d), None], 
+        1e-5, 1e-5, 1e-5, _signed_types, [torch.bfloat16]),
     ('clone', '', _medium_2d, lambda t, d: [], 1e-5, 1e-5, 1e-5, _types, _cpu_types, False),
     ('contiguous', '', _medium_2d, lambda t, d: [], 1e-5, 1e-5, 1e-5, _types, _cpu_types, False),
     ('conj', '', _small_3d, lambda t, d: [], 1e-5, 0, 1e-5, _types_no_half, [torch.bfloat16], False),

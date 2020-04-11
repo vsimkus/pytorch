@@ -12,6 +12,9 @@ namespace at {
 namespace native {
 
 DEFINE_DISPATCH(qclamp_stub);
+DEFINE_DISPATCH(qclamp_with_tensors_stub);
+DEFINE_DISPATCH(qclamp_with_min_tensor_stub);
+DEFINE_DISPATCH(qclamp_with_max_tensor_stub);
 
 namespace {
 Tensor quantized_clamp_impl(
@@ -27,6 +30,45 @@ Tensor quantized_clamp_impl(
   }
   return qy;
 }
+Tensor quantized_clamp_with_tensors_impl(
+    const Tensor& qx,
+    const Tensor& min,
+    const Tensor& max) {
+  Tensor qy;
+  if (min.defined() && max.defined()) {
+    qclamp_with_tensors_stub(qx.device().type(), qx, min, max, qy);
+  } else {
+    TORCH_CHECK(
+        false, "Both min and max should be specifed for quantized clamp!");
+  }
+  return qy;
+}
+Tensor quantized_clamp_with_min_tensor_impl(
+    const Tensor& qx,
+    const Tensor& min,
+    Scalar max) {
+  Tensor qy;
+  if (min.defined()) {
+    qclamp_with_min_tensor_stub(qx.device().type(), qx, min, max, qy);
+  } else {
+    TORCH_CHECK(
+        false, "Both min and max should be specifed for quantized clamp!");
+  }
+  return qy;
+}
+Tensor quantized_clamp_with_max_tensor_impl(
+    const Tensor& qx,
+    Scalar min,
+    const Tensor& max) {
+  Tensor qy;
+  if (max.defined()) {
+    qclamp_with_max_tensor_stub(qx.device().type(), qx, min, max, qy);
+  } else {
+    TORCH_CHECK(
+        false, "Both min and max should be specifed for quantized clamp!");
+  }
+  return qy;
+}
 } // namespace
 
 // at::native functions for the native_functions.yaml
@@ -37,6 +79,38 @@ Tensor quantized_clamp(
   Tensor qy;
   AT_DISPATCH_QINT_TYPES(qx.scalar_type(), "clamp", [&]() {
     qy = quantized_clamp_impl(qx, min, max);
+  });
+  return qy;
+}
+Tensor quantized_clamp_with_tensors(
+    const Tensor& qx,
+    const Tensor& min,
+    const Tensor& max) {
+  Tensor qy;
+  AT_DISPATCH_QINT_TYPES(qx.scalar_type(), "clamp", [&]() {
+    qy = quantized_clamp_with_tensors_impl(qx, min, max);
+  });
+  return qy;
+}
+
+Tensor quantized_clamp_with_min_tensor(
+    const Tensor& qx,
+    const Tensor& min,
+    Scalar max) {
+  Tensor qy;
+  AT_DISPATCH_QINT_TYPES(qx.scalar_type(), "clamp", [&]() {
+    qy = quantized_clamp_with_min_tensor_impl(qx, min, max);
+  });
+  return qy;
+}
+
+Tensor quantized_clamp_with_max_tensor(
+    const Tensor& qx,
+    Scalar min,
+    const Tensor& max) {
+  Tensor qy;
+  AT_DISPATCH_QINT_TYPES(qx.scalar_type(), "clamp", [&]() {
+    qy = quantized_clamp_with_max_tensor_impl(qx, min, max);
   });
   return qy;
 }
@@ -79,12 +153,42 @@ class QClamp final : public c10::OperatorKernel {
     return quantized_clamp(qx, min, max);
   }
 };
+class QClampWithTensors final : public c10::OperatorKernel {
+ public:
+  Tensor operator()(Tensor qx, optional<Tensor> min, optional<Tensor> max) {
+    return quantized_clamp_with_tensors(qx, min.value(), max.value());
+  }
+};
+class QClampWithTensors_min_tensor final : public c10::OperatorKernel {
+ public:
+  Tensor operator()(Tensor qx, const Tensor& min, Scalar max) {
+    return quantized_clamp_with_min_tensor(qx, min, max);
+  }
+};
+class QClampWithTensors_max_tensor final : public c10::OperatorKernel {
+ public:
+  Tensor operator()(Tensor qx, Scalar min, const Tensor& max) {
+    return quantized_clamp_with_max_tensor(qx, min, max);
+  }
+};
 
 static auto registry = c10::RegisterOperators().op(
     "quantized::clamp(Tensor qx, Scalar? min, Scalar? max) -> Tensor qy",
     c10::RegisterOperators::options()
         .aliasAnalysis(at::AliasAnalysisKind::FROM_SCHEMA)
-        .kernel<QClamp>(DispatchKey::QuantizedCPUTensorId));
+        .kernel<QClamp>(DispatchKey::QuantizedCPUTensorId))
+    .op("quantized::clamp_with_tensors(Tensor qx, Tensor? min=None, Tensor? max=None) -> Tensor qy",
+        c10::RegisterOperators::options()
+          .aliasAnalysis(at::AliasAnalysisKind::FROM_SCHEMA)
+          .kernel<QClampWithTensors>(DispatchKey::QuantizedCPUTensorId))
+    .op("quantized::clamp_with_min_tensor_max_scalar(Tensor qx, Tensor min, Scalar max) -> Tensor qy",
+        c10::RegisterOperators::options()
+          .aliasAnalysis(at::AliasAnalysisKind::FROM_SCHEMA)
+          .kernel<QClampWithTensors_min_tensor>(DispatchKey::QuantizedCPUTensorId))
+    .op("quantized::clamp_with_min_scalar_max_tensor(Tensor qx, Scalar min, Tensor max) -> Tensor qy",
+        c10::RegisterOperators::options()
+          .aliasAnalysis(at::AliasAnalysisKind::FROM_SCHEMA)
+          .kernel<QClampWithTensors_max_tensor>(DispatchKey::QuantizedCPUTensorId));
 } // namespace
 
 } // namespace native

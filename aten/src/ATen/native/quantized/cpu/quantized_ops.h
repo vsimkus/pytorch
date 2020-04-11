@@ -15,6 +15,21 @@ using qclamp_fn = void (*)(
     Scalar min,
     Scalar max,
     at::Tensor& /*qy*/);
+using qclamp_with_tensors_fn = void (*)(
+    const at::Tensor& /*qx*/,
+    const at::Tensor& min,
+    const at::Tensor& max,
+    at::Tensor& /*qy*/);
+using qclamp_with_min_tensor_fn = void (*)(
+    const at::Tensor& /*qx*/,
+    const at::Tensor& min,
+    Scalar max,
+    at::Tensor& /*qy*/);
+using qclamp_with_max_tensor_fn = void (*)(
+    const at::Tensor& /*qx*/,
+    Scalar min,
+    const at::Tensor& max,
+    at::Tensor& /*qy*/);
 using qtanh_fn = void (*)(const at::Tensor& /*qx*/, at::Tensor& /*qy*/);
 using qelu_fn = void(*)(
     const at::Tensor& /*qx*/,
@@ -125,6 +140,9 @@ DECLARE_DISPATCH(qrelu_leaky_fn, qrelu_leaky_stub);
 DECLARE_DISPATCH(qsigmoid_fn, qsigmoid_stub);
 DECLARE_DISPATCH(qhardsigmoid_fn, qhardsigmoid_stub);
 DECLARE_DISPATCH(qclamp_fn, qclamp_stub);
+DECLARE_DISPATCH(qclamp_with_tensors_fn, qclamp_with_tensors_stub);
+DECLARE_DISPATCH(qclamp_with_min_tensor_fn, qclamp_with_min_tensor_stub);
+DECLARE_DISPATCH(qclamp_with_max_tensor_fn, qclamp_with_max_tensor_stub);
 DECLARE_DISPATCH(qtanh_fn, qtanh_stub);
 DECLARE_DISPATCH(qbinary_fn, qadd_stub);
 DECLARE_DISPATCH(qbinary_fn, qadd_relu_stub);
