@@ -12,6 +12,9 @@ namespace at {
 namespace native {
 
 DEFINE_DISPATCH(qclamp_stub);
+DEFINE_DISPATCH(qclamp_with_tensors_stub);
+DEFINE_DISPATCH(qclamp_with_min_tensor_stub);
+DEFINE_DISPATCH(qclamp_with_max_tensor_stub);
 
 namespace {
 Tensor quantized_clamp_impl(
@@ -27,6 +30,45 @@ Tensor quantized_clamp_impl(
   }
   return qy;
 }
+Tensor quantized_clamp_with_tensors_impl(
+    const Tensor& qx,
+    const Tensor& min,
+    const Tensor& max) {
+  Tensor qy;
+  if (min.defined() && max.defined()) {
+    qclamp_with_tensors_stub(qx.device().type(), qx, min, max, qy);
+  } else {
+    TORCH_CHECK(
+        false, "Both min and max should be specifed for quantized clamp!");
+  }
+  return qy;
+}
+Tensor quantized_clamp_with_min_tensor_impl(
+    const Tensor& qx,
+    const Tensor& min,
+    Scalar max) {
+  Tensor qy;
+  if (min.defined()) {
+    qclamp_with_min_tensor_stub(qx.device().type(), qx, min, max, qy);
+  } else {
+    TORCH_CHECK(
+        false, "Both min and max should be specifed for quantized clamp!");
+  }
+  return qy;
+}
+Tensor quantized_clamp_with_max_tensor_impl(
+    const Tensor& qx,
+    Scalar min,
+    const Tensor& max) {
+  Tensor qy;
+  if (max.defined()) {
+    qclamp_with_max_tensor_stub(qx.device().type(), qx, min, max, qy);
+  } else {
+    TORCH_CHECK(
+        false, "Both min and max should be specifed for quantized clamp!");
+  }
+  return qy;
+}
 } // namespace
 
 // at::native functions for the native_functions.yaml
@@ -37,6 +79,38 @@ Tensor quantized_clamp(
   Tensor qy;
   AT_DISPATCH_QINT_TYPES(qx.scalar_type(), "clamp", [&]() {
     qy = quantized_clamp_impl(qx, min, max);
+  });
+  return qy;
+}
+Tensor quantized_clamp_with_tensors(
+    const Tensor& qx,
+    const Tensor& min,
+    const Tensor& max) {
+  Tensor qy;
+  AT_DISPATCH_QINT_TYPES(qx.scalar_type(), "clamp", [&]() {
+    qy = quantized_clamp_with_tensors_impl(qx, min, max);
+  });
+  return qy;
+}
+
+Tensor quantized_clamp_with_min_tensor(
+    const Tensor& qx,
+    const Tensor& min,
+    Scalar max) {
+  Tensor qy;
+  AT_DISPATCH_QINT_TYPES(qx.scalar_type(), "clamp", [&]() {
+    qy = quantized_clamp_with_min_tensor_impl(qx, min, max);
+  });
+  return qy;
+}
+
+Tensor quantized_clamp_with_max_tensor(
+    const Tensor& qx,
+    Scalar min,
+    const Tensor& max) {
+  Tensor qy;
+  AT_DISPATCH_QINT_TYPES(qx.scalar_type(), "clamp", [&]() {
+    qy = quantized_clamp_with_max_tensor_impl(qx, min, max);
   });
   return qy;
 }
@@ -73,6 +147,9 @@ Tensor& quantized_hardtanh_(
 
 TORCH_LIBRARY_IMPL(quantized, QuantizedCPU, m) {
   m.impl("clamp", quantized_clamp);
+  m.impl("clamp_with_tensors", quantized_clamp_with_tensors);
+  m.impl("clamp_with_min_tensor_max_scalar", quantized_clamp_with_min_tensor);
+  m.impl("clamp_with_min_scalar_max_tensor", quantized_clamp_with_max_tensor);
 }
 
 } // namespace native
