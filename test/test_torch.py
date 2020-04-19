@@ -6495,6 +6495,7 @@ class TestTorchDeviceType(TestCase):
         torch.clamp(m1, max=max_val, out=out)
         self.assertEqual(torch.isnan(m1_base), torch.isnan(out))
 
+    @onlyOnCPUAndCUDA
     def test_clamp_raises_arg_errors(self, device):
         m1 = torch.randn(100, dtype=torch.float, device=device)
         error_msg = 'At least one of \'min\' or \'max\' must not be None'
